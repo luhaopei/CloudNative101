@@ -15,8 +15,6 @@ func main() {
 
 func Index(w http.ResponseWriter, r *http.Request) {
 	// 接收客户端 request，并将 request 中带的 header 写入 response header
-	w.WriteHeader(http.StatusOK)
-	return
 	println("IP:", r.Host, " HTTP Status Code:", 200)
 	
 	for key, values := range r.Header {
