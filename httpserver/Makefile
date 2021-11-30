@@ -3,7 +3,7 @@ ADDR=80
 VERSION="v1.0.0"
 
 TAG="v1.0"
-DOCKER_ACCOUNT="bearlu080622"
+DOCKER_ACCOUNT="bearlu"
 
 run: build
 	@echo "run app..."
@@ -12,11 +12,11 @@ run: build
 
 build:
 	@echo "build image..."
-	@docker build -t $(DOCKER_ACCOUNT)/$(APP_NAME) -f ./Dockerfile .
+	@docker build -t $(DOCKER_ACCOUNT)/$(APP_NAME):$(TAG) -f ./Dockerfile .
 
 push: build
 	@echo "push image $(APP_NAME)..."
-	@docker tag $(DOCKER_ACCOUNT)/$(APP_NAME) $(DOCKER_ACCOUNT)/$(APP_NAME):$(TAG)
+	@docker tag $(DOCKER_ACCOUNT)/$(APP_NAME):$(TAG) $(DOCKER_ACCOUNT)/$(APP_NAME):$(TAG)
 	@docker push $(DOCKER_ACCOUNT)/$(APP_NAME):$(TAG)
 
 run-image-local: build

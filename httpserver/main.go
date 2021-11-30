@@ -1,37 +1,62 @@
 package main
 
 import (
+	"context"
+	"httpserver/handler"
+	"httpserver/logger"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
+	//"github.com/namsral/flag"
+	"flag"
 )
 
-func main() {
-	http.HandleFunc("/", Index)
-	http.HandleFunc("/version", GetVersion)
-	http.HandleFunc("/healthz", Healthz)
-	log.Fatal(http.ListenAndServe(":8080", nil))
-}
+// 优先读取k8s设置得环境变量
+var addr = flag.String("addr", ":80", "address to listen")
+var version = flag.String("version", "v0.0.1", "version for httpserver")
+var shotdownTime = flag.Int("shotdown_time", 10, "shotdownTime for httpserver")
+var logFile = flag.String("log_file", "httpserver.log", "log_file for httpserver")
+var logLevel = flag.String("log_level", "INFO", "log_level for httpserver")
 
-func Index(w http.ResponseWriter, r *http.Request) {
-	// 接收客户端 request，并将 request 中带的 header 写入 response header
-	println("IP:", r.Host, " HTTP Status Code:", 200)
-	w.WriteHeader(200)
-	for key, values := range r.Header {
-		for _, value := range values {
-			w.Header().Set(key, value)
-		}
+func main() {
+	flag.Parse()
+
+	os.Setenv("VERSION", *version)
+
+	lg, err := logger.New(*logFile, *logLevel)
+	if err != nil {
+		log.Fatalf("cannot create a logger: %v", err)
 	}
-}
-func Healthz(w http.ResponseWriter, r *http.Request) {
-	// 当访问 localhost/healthz 时，应返回200
-	println("IP:", r.Host, " HTTP Status Code:", 200)
-	w.WriteHeader(200)
-}
-func GetVersion(w http.ResponseWriter, r *http.Request) {
-	// 读取当前系统的环境变量中的 VERSION 配置，并写入 response header
-	w.WriteHeader(200)
-	println("IP:", r.Host, " HTTP Status Code:", 200)
-	version := os.Getenv("VERSION")
-	w.Header().Set("VERSION", version)
+	defer lg.Sync()
+	sugar := lg.Sugar()
+
+	h := handler.New(lg)
+	srv := http.Server{
+		Addr:    *addr,
+		Handler: h,
+	}
+
+	go func() {
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			sugar.Fatalf("listen: %s\n", err)
+		}
+	}()
+
+	sugar.Info("httpserver start on", *addr)
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+	sugar.Info("httpserver shutting down...")
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(*shotdownTime)*time.Second)
+	defer cancel()
+	if err := srv.Shutdown(ctx); err != nil {
+		sugar.Fatal("httpserver forced to shutdown: ", err)
+	}
+
+	sugar.Info("httpserver exiting")
 }

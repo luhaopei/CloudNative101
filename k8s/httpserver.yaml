@@ -19,7 +19,7 @@ spec:
     spec:
       containers:
         - name: httpserver
-          image: /YOUR_REPO/IMAGE:TAG
+          image: bearlu/httpserver:v1
           ports:
             - containerPort: 8080
           lifecycle:
@@ -35,10 +35,10 @@ spec:
             periodSeconds: 5
           resources:
             requests:
-              cpu: 100m
+              cpu: 1
               memory: 30Mi
             limits:
-              cpu: 100m
+              cpu: 1
               memory: 50Mi
           envFrom:
             - configMapRef:
