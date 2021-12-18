@@ -1,10 +1,13 @@
 package handler
 
 import (
+	"httpserver/metrics"
+	"math/rand"
 	"net"
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"go.uber.org/zap"
 )
@@ -13,11 +16,26 @@ func New(lg *zap.Logger) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/healthz", healthz)
 
-	return logMiddleware(headerMiddleware(mux), lg)
+	return logMiddleware(headerMiddleware(metricsMiddleware(mux)), lg)
 }
 
 func healthz(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
+}
+
+func randInt(min int, max int) int {
+	rand.Seed(time.Now().UTC().UnixNano())
+	return min + rand.Intn(max-min)
+}
+
+func metricsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		timer := metrics.NewTimer()
+		defer timer.ObserveTotal()
+		delay := randInt(10, 2000)
+		time.Sleep(time.Millisecond * time.Duration(delay))
+		next.ServeHTTP(w, r)
+	})
 }
 
 func logMiddleware(next http.Handler, lg *zap.Logger) http.Handler {
